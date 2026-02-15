@@ -5,6 +5,10 @@ on:
     - cron: '*/20 * * * *'
   workflow_dispatch:
 
+permissions:
+  codespaces: write
+  contents: read
+
 jobs:
   ping-codespace:
     runs-on: ubuntu-latest
@@ -16,20 +20,25 @@ jobs:
           echo "Pinging Codespace at $(date)"
           
           # Get Codespace status
-          STATUS=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+          RESPONSE=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/user/codespaces/symmetrical-space-eureka-4qv9vjp6qq7h7pr9 | \
-            jq -r '.state')
+            https://api.github.com/user/codespaces/symmetrical-space-eureka-4qv9vjp6qq7h7pr9)
+          
+          echo "Raw response: $RESPONSE"
+          
+          STATUS=$(echo "$RESPONSE" | jq -r '.state // empty')
           
           echo "Current status: $STATUS"
           
-          # If Shutdown, start it
-          if [ "$STATUS" = "Shutdown" ]; then
-            echo "Starting Codespace..."
+          # If Shutdown or null/empty, try to start it
+          if [ -z "$STATUS" ] || [ "$STATUS" = "Shutdown" ] || [ "$STATUS" = "null" ]; then
+            echo "Codespace is not running. Starting it..."
             curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github.v3+json" \
               https://api.github.com/user/codespaces/symmetrical-space-eureka-4qv9vjp6qq7h7pr9/start | \
               jq -r '{name: .name, state: .state}'
+          else
+            echo "Codespace is already running: $STATUS"
           fi
           
           echo "Ping completed at $(date)"
