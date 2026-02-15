@@ -11,29 +11,28 @@ jobs:
     steps:
       - name: Start Codespace
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT: ${{ secrets.CODESPACE_PAT }}
         run: |
           echo "Attempting to start Codespace at $(date)"
           
-          # List all codespaces to verify access
-          echo "Listing codespaces..."
-          curl -s -H "Authorization: Bearer $GH_TOKEN" \
+          # Get current status
+          STATUS=$(curl -s -H "Authorization: Bearer $PAT" \
             -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/user/codespaces | jq -r '.codespaces[]?.name // "No codespaces found"'
+            https://api.github.com/user/codespaces/symmetrical-space-eureka-4qv9vjp6qq7h7pr9 | \
+            jq -r '.state // "unknown"')
           
-          # Try to start the specific codespace
-          echo "Starting symmetrical-space-eureka-4qv9vjp6qq7h7pr9..."
-          RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/user/codespaces/symmetrical-space-eureka-4qv9vjp6qq7h7pr9/start)
+          echo "Current status: $STATUS"
           
-          echo "Response: $RESPONSE"
-          
-          # Check if successful
-          if echo "$RESPONSE" | jq -e '.state' > /dev/null 2>&1; then
-            echo "鉁?Codespace state: $(echo "$RESPONSE" | jq -r '.state')"
+          # Start if not running
+          if [ "$STATUS" = "Shutdown" ] || [ "$STATUS" = "null" ] || [ "$STATUS" = "unknown" ]; then
+            echo "Starting Codespace..."
+            curl -s -X POST -H "Authorization: Bearer $PAT" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/user/codespaces/symmetrical-space-eureka-4qv9vjp6qq7h7pr9/start | \
+              jq -r '{name: .name, state: .state}'
+            echo "鉁?Start command sent"
           else
-            echo "鈿狅笍  May already be running or error occurred"
+            echo "鉁?Codespace is already running: $STATUS"
           fi
           
           echo "Completed at $(date)"
