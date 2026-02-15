@@ -1,0 +1,18 @@
+name: Keep Codespace Alive
+
+on:
+  schedule:
+    # 姣?20 鍒嗛挓杩愯涓€娆?    - cron: '*/20 * * * *'
+  workflow_dispatch:  # 鏀寔鎵嬪姩瑙﹀彂
+
+jobs:
+  ping-codespace:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Codespace
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Pinging Codespace at $(date)"
+          gh api /user/codespaces/symmetrical-space-eureka-4qv9vjp6qq7h7pr9 --jq '{name: .name, state: .state, last_used_at: .last_used_at}'
+          echo "Ping completed"
