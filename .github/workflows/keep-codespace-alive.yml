@@ -9,27 +9,27 @@ jobs:
   ping-codespace:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Setup GitHub CLI
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          
-      - name: Install GitHub CLI
-        run: |
-          type -p curl >/dev/null || (apt update && apt install curl -y)
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-          && apt update \
-          && apt install gh -y
-          
-      - name: Ping Codespace
+      - name: Ping Codespace via API
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Pinging Codespace at $(date)"
-          gh auth status
-          gh api /user/codespaces/symmetrical-space-eureka-4qv9vjp6qq7h7pr9 --jq '{name: .name, state: .state, last_used_at: .last_used_at}' || echo "Ping completed"
+          
+          # Get Codespace status
+          STATUS=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/user/codespaces/symmetrical-space-eureka-4qv9vjp6qq7h7pr9 | \
+            jq -r '.state')
+          
+          echo "Current status: $STATUS"
+          
+          # If Shutdown, start it
+          if [ "$STATUS" = "Shutdown" ]; then
+            echo "Starting Codespace..."
+            curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/user/codespaces/symmetrical-space-eureka-4qv9vjp6qq7h7pr9/start | \
+              jq -r '{name: .name, state: .state}'
+          fi
+          
+          echo "Ping completed at $(date)"
